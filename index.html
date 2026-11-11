@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -191,6 +190,9 @@
         updateDateTime();
 
         // --- 3. ดึงข้อมูลจริงจาก Air4Thai (สำหรับค่าปัจจุบัน) ---
+        // ⚠️ วาง URL ของ Google Apps Script ที่เพิ่งสร้างใหม่ (สำหรับดึง Air4Thai) ลงในเครื่องหมายคำพูดด้านล่าง
+        const AIR4THAI_GAS_URL = "https://script.google.com/macros/s/AKfycbwFp8EUEXEn19rjezQPlPoU2mVNYuJLnFimBDRMmktMOLYyuhrBq-KLJy78C8Ma7-0B/exec";
+
         async function fetchAirData() {
             // เปลี่ยนสถานะหน้าจอเป็น "กำลังโหลด"
             document.getElementById('current-pm25').innerText = "...";
@@ -199,15 +201,16 @@
             document.getElementById('status-badge').classList.remove('text-gray-900');
 
             try {
+                if (!AIR4THAI_GAS_URL) {
+                    throw new Error("ยังไม่ได้ตั้งค่าลิงก์ GAS");
+                }
+
                 // ใส่ตัวจับเวลา เพิ่มเป็น 10 วินาที
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-                const url = 'http://air4thai.pcd.go.th/services/getNewAQI_JSON.php';
-                // เปลี่ยนมาใช้ Proxy AllOrigins ซึ่งมีความเสถียรสูงกว่า
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                
-                const response = await fetch(proxyUrl, { signal: controller.signal });
+                // ดึงข้อมูลผ่าน GAS ของเราเอง (เสถียร 100% ไม่โดนบล็อก)
+                const response = await fetch(AIR4THAI_GAS_URL, { redirect: "follow", signal: controller.signal });
                 clearTimeout(timeoutId); 
                 
                 if (!response.ok) throw new Error("Network response was not ok");
@@ -223,7 +226,7 @@
             } catch (error) {
                 console.warn("ดึงข้อมูลจริงไม่สำเร็จ:", error);
                 
-                // ถ้าระบบล่มหรือดึงไม่ได้ ให้แสดงผลว่า "เชื่อมต่อล้มเหลว" แทนการสุ่มตัวเลข
+                // ถ้าระบบล่มหรือดึงไม่ได้ ให้แสดงผลว่า "เชื่อมต่อล้มเหลว"
                 document.getElementById('current-pm25').innerText = "--";
                 document.getElementById('face-icon').innerText = "⚠️";
                 
