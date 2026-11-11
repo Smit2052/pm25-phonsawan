@@ -17,7 +17,7 @@
     <style>
         body {
             font-family: 'Noto Sans Thai', 'Inter', sans-serif;
-            background-color: #F0F4F8; /* สีพื้นหลังเหมือนในต้นแบบ */
+            background-color: #F0F4F8;
             color: #334155;
         }
         .card {
@@ -26,7 +26,6 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
             border: 1px solid #E2E8F0;
         }
-        /* ซ่อน Scrollbar แต่ยังเลื่อนได้สำหรับตาราง */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -111,30 +110,6 @@
                         กำลังดึงข้อมูล...
                     </div>
                 </div>
-
-                <!-- ข้อมูลสภาพอากาศจำลอง (ตามต้นแบบ) -->
-                <div class="grid grid-cols-3 gap-2 border-t border-b border-gray-100 py-3 mt-4 text-xs font-medium text-gray-500 text-center">
-                    <div class="flex flex-col items-center gap-1">
-                        <span>🌡️ อุณหภูมิ</span>
-                        <span class="text-gray-700">32.0° C</span>
-                    </div>
-                    <div class="flex flex-col items-center gap-1 border-l border-gray-100">
-                        <span>💧 ความชื้น</span>
-                        <span class="text-gray-700">55%</span>
-                    </div>
-                    <div class="flex flex-col items-center gap-1 border-l border-gray-100">
-                        <span>💨 ลม</span>
-                        <span class="text-gray-700">4.2 กม./ชม.</span>
-                    </div>
-                </div>
-
-                <!-- กราฟรายชั่วโมงขนาดเล็ก -->
-                <div class="mt-4 flex-grow flex flex-col">
-                    <h3 class="text-xs font-bold text-gray-500 mb-2 text-center">สถิติรายชั่วโมง</h3>
-                    <div class="relative w-full h-24">
-                        <canvas id="hourlyChart"></canvas>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -142,7 +117,6 @@
         <div class="card p-6">
             <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
                 <h2 class="text-lg font-bold text-gray-700">ข้อมูลฝุ่น PM2.5 ย้อนหลังรายวัน (7 วันล่าสุด)</h2>
-                <span class="text-xs text-gray-400">* ข้อมูลจำลองสำหรับตำบลโพนสวรรค์</span>
             </div>
             
             <div class="overflow-x-auto no-scrollbar">
@@ -190,11 +164,9 @@
         updateDateTime();
 
         // --- 3. ดึงข้อมูลจริงจาก Air4Thai (สำหรับค่าปัจจุบัน) ---
-        // ⚠️ วาง URL ของ Google Apps Script ที่เพิ่งสร้างใหม่ (สำหรับดึง Air4Thai) ลงในเครื่องหมายคำพูดด้านล่าง
         const AIR4THAI_GAS_URL = "https://script.google.com/macros/s/AKfycbwFp8EUEXEn19rjezQPlPoU2mVNYuJLnFimBDRMmktMOLYyuhrBq-KLJy78C8Ma7-0B/exec";
 
         async function fetchAirData() {
-            // เปลี่ยนสถานะหน้าจอเป็น "กำลังโหลด"
             document.getElementById('current-pm25').innerText = "...";
             document.getElementById('status-badge').innerText = "กำลังอัปเดต...";
             document.getElementById('status-badge').style.backgroundColor = "#9CA3AF";
@@ -205,18 +177,15 @@
                     throw new Error("ยังไม่ได้ตั้งค่าลิงก์ GAS");
                 }
 
-                // ใส่ตัวจับเวลา เพิ่มเป็น 10 วินาที
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-                // ดึงข้อมูลผ่าน GAS ของเราเอง (เสถียร 100% ไม่โดนบล็อก)
                 const response = await fetch(AIR4THAI_GAS_URL, { redirect: "follow", signal: controller.signal });
                 clearTimeout(timeoutId); 
                 
                 if (!response.ok) throw new Error("Network response was not ok");
                 const data = await response.json();
                 
-                // หาสถานีนครพนม
                 const station = data.stations.find(s => s.areaTH.includes("นครพนม") || s.stationID === "73t");
                 if (station && station.AQILast.PM25.value !== "-") {
                     updateCurrentStatus(parseFloat(station.AQILast.PM25.value));
@@ -226,32 +195,29 @@
             } catch (error) {
                 console.warn("ดึงข้อมูลจริงไม่สำเร็จ:", error);
                 
-                // ถ้าระบบล่มหรือดึงไม่ได้ ให้แสดงผลว่า "เชื่อมต่อล้มเหลว"
                 document.getElementById('current-pm25').innerText = "--";
                 document.getElementById('face-icon').innerText = "⚠️";
                 
                 const badge = document.getElementById('status-badge');
                 badge.innerText = "ไม่สามารถเชื่อมต่อสถานีได้";
-                badge.style.backgroundColor = "#6B7280"; // สีเทาเข้ม
+                badge.style.backgroundColor = "#6B7280"; 
                 badge.classList.remove('text-gray-900');
                 
                 document.getElementById('status-top-bar').style.backgroundColor = "#6B7280";
-                updateDateTime(); // อัปเดตเวลาเพื่อให้ทราบว่าพยายามรีเฟรชแล้ว
+                updateDateTime(); 
             }
         }
 
         function updateCurrentStatus(pm25) {
             const style = getAQIStyle(pm25);
             
-            // อัปเดตตัวเลขและไอคอน
             document.getElementById('current-pm25').innerText = pm25.toFixed(1);
             document.getElementById('face-icon').innerText = style.face;
             
-            // อัปเดตป้ายสถานะและแถบสี
             const badge = document.getElementById('status-badge');
             badge.innerText = style.status;
             badge.style.backgroundColor = style.color;
-            if (style.color === "#FBBF24") badge.classList.add('text-gray-900'); // สีเหลืองใช้ตัวหนังสือดำ
+            if (style.color === "#FBBF24") badge.classList.add('text-gray-900'); 
             else badge.classList.remove('text-gray-900');
             
             document.getElementById('status-top-bar').style.backgroundColor = style.color;
@@ -266,28 +232,25 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
                 
-                // ดึงข้อมูลจาก Google Apps Script โดยตรง
                 const response = await fetch(GAS_API_URL, { redirect: "follow", signal: controller.signal });
                 clearTimeout(timeoutId);
                 const data = await response.json();
 
-                // เช็คว่าใน Sheet มีการกรอกข้อมูลไว้หรือไม่ (ข้อมูลมากกว่า 0 แถว)
                 if (data && data.length > 0) {
                     processYearlyData(data);
                     processHistoryData(data);
                 } else {
-                    console.warn("พบตาราง Google Sheets แต่ยังไม่มีข้อมูล นำข้อมูลจำลองมาแสดงแทนชั่วคราว");
+                    console.warn("พบตาราง Google Sheets แต่ยังไม่มีข้อมูล");
                     renderYearlyChart(null); 
                     renderHistoryTable(null);
                 }
             } catch (error) {
-                console.warn("ดึงชีทไม่ได้ (อาจเป็นเพราะหน้า Preview) ใช้ข้อมูลจำลองไปก่อน", error);
+                console.warn("ดึงชีทไม่ได้", error);
                 renderYearlyChart(null);
                 renderHistoryTable(null);
             }
         }
 
-        // ประมวลผลข้อมูลรายเดือนสำหรับกราฟรายปี
         function processYearlyData(sheetData) {
             const monthlySums = Array(12).fill(0);
             const monthlyCounts = Array(12).fill(0);
@@ -308,7 +271,6 @@
             renderYearlyChart(monthlyAverages);
         }
 
-        // ประมวลผลข้อมูล 7 วันล่าสุดสำหรับตาราง
         function processHistoryData(sheetData) {
             const sortedData = sheetData.sort((a, b) => new Date(a.date) - new Date(b.date));
             const last7Days = sortedData.slice(-7).reverse(); 
@@ -321,9 +283,8 @@
             const ctx = document.getElementById('yearlyChart').getContext('2d');
             let displayData;
 
-            // ตรวจสอบว่าถ้าไม่มีข้อมูลจริง หรือข้อมูลเป็นเลข 0 ทั้งหมด ให้ใช้ข้อมูลจำลอง
             if (!realData || realData.length === 0 || realData.every(v => v == 0)) {
-                displayData = [45, 52, 68, 40, 22, 15, 12, 10, 14, 25, 35, 42];
+                displayData = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             } else {
                 displayData = realData;
             }
@@ -364,44 +325,20 @@
             });
         }
 
-        // --- 5. สร้างกราฟรายชั่วโมง (จำลอง) ---
-        function renderHourlyChart() {
-            const ctx = document.getElementById('hourlyChart').getContext('2d');
-            const hourlyData = [18, 20, 22, 25, 24, 20, 18, 16, 15, 16, 18, 19];
-            const colors = hourlyData.map(val => getAQIStyle(val).color);
-
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['-11h','-10h','-9h','-8h','-7h','-6h','-5h','-4h','-3h','-2h','-1h','Now'],
-                    datasets: [{ data: hourlyData, backgroundColor: colors, borderRadius: 4, barPercentage: 0.7 }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    scales: { y: { display: false, beginAtZero: true }, x: { display: false } }
-                }
-            });
-        }
-
-        // --- 6. สร้างตารางข้อมูลย้อนหลังรายวัน ---
+        // --- 5. สร้างตารางข้อมูลย้อนหลังรายวัน ---
         function renderHistoryTable(realData = null) {
             const tbody = document.getElementById('history-table-body');
             tbody.innerHTML = '';
             
-            // กรณีไม่มีข้อมูล ให้ใช้ข้อมูลจำลอง
             if (!realData || realData.length === 0) {
-                const defaultHistory = [16.5, 22.1, 35.0, 42.5, 28.3, 19.4, 15.2];
-                const defaultAqi = [25, 32, 75, 110, 55, 28, 22];
-                for (let i = 0; i < 7; i++) {
-                    const today = new Date();
-                    today.setDate(today.getDate() - i);
-                    const dateStr = today.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
-                    appendRowToTable(tbody, dateStr, defaultHistory[i], defaultAqi[i]);
-                }
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="p-6 text-center text-gray-400">
+                            ยังไม่มีข้อมูลแสดงผล (กำลังรอข้อมูลจาก Google Sheet)
+                        </td>
+                    </tr>
+                `;
             } else {
-                // กรณีมีข้อมูลจริง ให้วนลูปเท่าที่มีข้อมูล (สูงสุด 7 แถว)
                 const limit = Math.min(realData.length, 7);
                 for (let i = 0; i < limit; i++) {
                     const d = new Date(realData[i].date);
@@ -411,7 +348,6 @@
             }
         }
 
-        // ฟังก์ชันช่วยสร้างแถวในตาราง
         function appendRowToTable(tbody, dateStr, pm25, aqi) {
             const style = getAQIStyle(pm25);
             const tr = document.createElement('tr');
@@ -433,9 +369,8 @@
 
         // --- เริ่มต้นการทำงาน ---
         window.onload = function() {
-            fetchAirData(); // ดึงค่าปัจจุบัน
-            fetchGoogleSheetData(); // ดึงค่าจากชีทมาสร้างกราฟรายปีและตาราง
-            renderHourlyChart(); // สร้างกราฟรายชั่วโมง
+            fetchAirData(); 
+            fetchGoogleSheetData(); 
         };
     </script>
 </body>
