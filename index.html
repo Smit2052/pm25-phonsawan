@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -191,18 +192,25 @@
 
         // --- 3. ดึงข้อมูลจริงจาก Air4Thai (สำหรับค่าปัจจุบัน) ---
         async function fetchAirData() {
+            // เปลี่ยนสถานะหน้าจอเป็น "กำลังโหลด"
+            document.getElementById('current-pm25').innerText = "...";
+            document.getElementById('status-badge').innerText = "กำลังอัปเดต...";
+            document.getElementById('status-badge').style.backgroundColor = "#9CA3AF";
+            document.getElementById('status-badge').classList.remove('text-gray-900');
+
             try {
-                // ใส่ตัวจับเวลา ถ้าโหลดนานเกิน 5 วินาทีให้ตัดจบเลย ป้องกันเว็บค้าง
+                // ใส่ตัวจับเวลา เพิ่มเป็น 10 วินาที
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
 
                 const url = 'http://air4thai.pcd.go.th/services/getNewAQI_JSON.php';
-                // เปลี่ยนไปใช้ Proxy ตัวใหม่ที่เสถียรกว่า
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                // เปลี่ยนมาใช้ Proxy AllOrigins ซึ่งมีความเสถียรสูงกว่า
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
                 
                 const response = await fetch(proxyUrl, { signal: controller.signal });
-                clearTimeout(timeoutId); // ยกเลิกตัวจับเวลาเมื่อโหลดเสร็จ
+                clearTimeout(timeoutId); 
                 
+                if (!response.ok) throw new Error("Network response was not ok");
                 const data = await response.json();
                 
                 // หาสถานีนครพนม
@@ -210,13 +218,22 @@
                 if (station && station.AQILast.PM25.value !== "-") {
                     updateCurrentStatus(parseFloat(station.AQILast.PM25.value));
                 } else {
-                    throw new Error("ไม่มีข้อมูลเซ็นเซอร์");
+                    throw new Error("ไม่มีข้อมูลเซ็นเซอร์จากสถานี");
                 }
             } catch (error) {
-                console.warn("ดึงข้อมูลจริงไม่สำเร็จ ใช้ข้อมูลจำลองแทน", error);
-                // ถ้าดึงไม่ได้หรือเน็ตช้า ให้สุ่มค่าให้ดูสมจริง (ระหว่าง 10 - 45)
-                const randomPM = (Math.random() * 35 + 10).toFixed(1);
-                updateCurrentStatus(parseFloat(randomPM));
+                console.warn("ดึงข้อมูลจริงไม่สำเร็จ:", error);
+                
+                // ถ้าระบบล่มหรือดึงไม่ได้ ให้แสดงผลว่า "เชื่อมต่อล้มเหลว" แทนการสุ่มตัวเลข
+                document.getElementById('current-pm25').innerText = "--";
+                document.getElementById('face-icon').innerText = "⚠️";
+                
+                const badge = document.getElementById('status-badge');
+                badge.innerText = "ไม่สามารถเชื่อมต่อสถานีได้";
+                badge.style.backgroundColor = "#6B7280"; // สีเทาเข้ม
+                badge.classList.remove('text-gray-900');
+                
+                document.getElementById('status-top-bar').style.backgroundColor = "#6B7280";
+                updateDateTime(); // อัปเดตเวลาเพื่อให้ทราบว่าพยายามรีเฟรชแล้ว
             }
         }
 
